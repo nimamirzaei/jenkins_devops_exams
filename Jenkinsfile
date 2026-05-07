@@ -76,7 +76,6 @@ pipeline {
             }
             steps {
                 sh '''
-                input message: 'Deploy to Dev?'
                 rm -Rf .kube
                 mkdir .kube
                 cat $KUBECONFIG > .kube/config
