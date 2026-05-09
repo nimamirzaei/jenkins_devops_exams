@@ -82,8 +82,12 @@ pipeline {
                 expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'dev' || params.ENVIRONMENT == 'all') }
             }
             steps {
-                withKubeConfig([credentialsId: 'config']) {
+                withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
+                    mkdir -p ~/.kube
+                    cp "$KUBECONFIG_FILE" ~/.kube/config
+                    chmod 600 ~/.kube/config
+
                     helm upgrade --install movie-app-dev $CHART_PATH \
                       -n $NS_DEV \
                       --create-namespace \
@@ -100,8 +104,12 @@ pipeline {
                 expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'qa' || params.ENVIRONMENT == 'all') }
             }
             steps {
-                withKubeConfig([credentialsId: 'config']) {
+                withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
+                    mkdir -p ~/.kube
+                    cp "$KUBECONFIG_FILE" ~/.kube/config
+                    chmod 600 ~/.kube/config
+
                     helm upgrade --install movie-app-qa $CHART_PATH \
                       -n $NS_QA \
                       --create-namespace \
@@ -118,8 +126,12 @@ pipeline {
                 expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'staging' || params.ENVIRONMENT == 'all') }
             }
             steps {
-                withKubeConfig([credentialsId: 'config']) {
+                withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
+                    mkdir -p ~/.kube
+                    cp "$KUBECONFIG_FILE" ~/.kube/config
+                    chmod 600 ~/.kube/config
+
                     helm upgrade --install movie-app-staging $CHART_PATH \
                       -n $NS_STAGING \
                       --create-namespace \
@@ -141,8 +153,12 @@ pipeline {
             steps {
                 input message: 'Deploy to production?'
 
-                withKubeConfig([credentialsId: 'config']) {
+                withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
+                    mkdir -p ~/.kube
+                    cp "$KUBECONFIG_FILE" ~/.kube/config
+                    chmod 600 ~/.kube/config
+
                     helm upgrade --install movie-app-prod $CHART_PATH \
                       -n $NS_PROD \
                       --create-namespace \
@@ -161,8 +177,12 @@ pipeline {
             steps {
                 input message: 'Stop DEV environment?'
 
-                withKubeConfig([credentialsId: 'config']) {
+                withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
+                    mkdir -p ~/.kube
+                    cp "$KUBECONFIG_FILE" ~/.kube/config
+                    chmod 600 ~/.kube/config
+
                     helm uninstall movie-app-dev -n $NS_DEV || true
                     '''
                 }
@@ -176,8 +196,12 @@ pipeline {
             steps {
                 input message: 'Stop QA environment?'
 
-                withKubeConfig([credentialsId: 'config']) {
+                withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
+                    mkdir -p ~/.kube
+                    cp "$KUBECONFIG_FILE" ~/.kube/config
+                    chmod 600 ~/.kube/config
+
                     helm uninstall movie-app-qa -n $NS_QA || true
                     '''
                 }
@@ -191,8 +215,12 @@ pipeline {
             steps {
                 input message: 'Stop STAGING environment?'
 
-                withKubeConfig([credentialsId: 'config']) {
+                withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
+                    mkdir -p ~/.kube
+                    cp "$KUBECONFIG_FILE" ~/.kube/config
+                    chmod 600 ~/.kube/config
+
                     helm uninstall movie-app-staging -n $NS_STAGING || true
                     '''
                 }
@@ -206,8 +234,12 @@ pipeline {
             steps {
                 input message: 'Stop PRODUCTION environment?'
 
-                withKubeConfig([credentialsId: 'config']) {
+                withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
+                    mkdir -p ~/.kube
+                    cp "$KUBECONFIG_FILE" ~/.kube/config
+                    chmod 600 ~/.kube/config
+
                     helm uninstall movie-app-prod -n $NS_PROD || true
                     '''
                 }
@@ -217,8 +249,15 @@ pipeline {
 
     post {
         always {
-            withKubeConfig([credentialsId: 'config']) {
+            withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                 sh '''
+                mkdir -p ~/.kube
+                cp "$KUBECONFIG_FILE" ~/.kube/config
+                chmod 600 ~/.kube/config
+
+                echo "===== HELM RELEASES ====="
+                helm list -A || true
+
                 echo "===== JENKINS DEV ====="
                 kubectl get pods -n $NS_DEV || true
                 kubectl get svc -n $NS_DEV || true
