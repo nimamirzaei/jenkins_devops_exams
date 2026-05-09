@@ -13,7 +13,17 @@ pipeline {
         MOVIE_IMAGE = 'movie-service'
         CAST_IMAGE = 'cast-service'
 
-        CHART_PATH = './movie-app-chart'
+        CHART_PATH = './charts'
+
+        NS_DEV = 'jenkins-dev'
+        NS_QA = 'jenkins-qa'
+        NS_STAGING = 'jenkins-staging'
+        NS_PROD = 'jenkins-prod'
+
+        HOST_DEV = 'movie-dev.services-cloud.abrdns.com'
+        HOST_QA = 'movie-qa.services-cloud.abrdns.com'
+        HOST_STAGING = 'movie-staging.services-cloud.abrdns.com'
+        HOST_PROD = 'movie-prod.services-cloud.abrdns.com'
     }
 
     stages {
@@ -71,20 +81,17 @@ pipeline {
             when {
                 expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'dev' || params.ENVIRONMENT == 'all') }
             }
-            environment {
-                KUBECONFIG = credentials('config')
-            }
             steps {
-                sh '''
-                rm -Rf .kube
-                mkdir .kube
-                cat $KUBECONFIG > .kube/config
-                helm upgrade --install movie-app-dev $CHART_PATH \
-                  -n dev \
-                  --create-namespace \
-                  --set image.tag=$DOCKER_TAG \
-                  --set nginx.nodePort=30080
-                '''
+                withKubeConfig([credentialsId: 'config']) {
+                    sh '''
+                    helm upgrade --install movie-app-dev $CHART_PATH \
+                      -n $NS_DEV \
+                      --create-namespace \
+                      --set image.tag=$DOCKER_TAG \
+                      --set ingress.enabled=true \
+                      --set ingress.host=$HOST_DEV
+                    '''
+                }
             }
         }
 
@@ -92,20 +99,17 @@ pipeline {
             when {
                 expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'qa' || params.ENVIRONMENT == 'all') }
             }
-            environment {
-                KUBECONFIG = credentials('config')
-            }
             steps {
-                sh '''
-                rm -Rf .kube
-                mkdir .kube
-                cat $KUBECONFIG > .kube/config
-                helm upgrade --install movie-app-qa $CHART_PATH \
-                  -n qa \
-                  --create-namespace \
-                  --set image.tag=$DOCKER_TAG \
-                  --set nginx.nodePort=30081
-                '''
+                withKubeConfig([credentialsId: 'config']) {
+                    sh '''
+                    helm upgrade --install movie-app-qa $CHART_PATH \
+                      -n $NS_QA \
+                      --create-namespace \
+                      --set image.tag=$DOCKER_TAG \
+                      --set ingress.enabled=true \
+                      --set ingress.host=$HOST_QA
+                    '''
+                }
             }
         }
 
@@ -113,42 +117,40 @@ pipeline {
             when {
                 expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'staging' || params.ENVIRONMENT == 'all') }
             }
-            environment {
-                KUBECONFIG = credentials('config')
-            }
             steps {
-                sh '''
-                rm -Rf .kube
-                mkdir .kube
-                cat $KUBECONFIG > .kube/config
-                helm upgrade --install movie-app-staging $CHART_PATH \
-                  -n staging \
-                  --create-namespace \
-                  --set image.tag=$DOCKER_TAG \
-                  --set nginx.nodePort=30082
-                '''
+                withKubeConfig([credentialsId: 'config']) {
+                    sh '''
+                    helm upgrade --install movie-app-staging $CHART_PATH \
+                      -n $NS_STAGING \
+                      --create-namespace \
+                      --set image.tag=$DOCKER_TAG \
+                      --set ingress.enabled=true \
+                      --set ingress.host=$HOST_STAGING
+                    '''
+                }
             }
         }
 
         stage('Deploy Prod') {
             when {
-                expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'prod' || params.ENVIRONMENT == 'all') }
-            }
-            environment {
-                KUBECONFIG = credentials('config')
+                allOf {
+                    expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'prod' || params.ENVIRONMENT == 'all') }
+                    branch 'master'
+                }
             }
             steps {
                 input message: 'Deploy to production?'
-                sh '''
-                rm -Rf .kube
-                mkdir .kube
-                cat $KUBECONFIG > .kube/config
-                helm upgrade --install movie-app-prod $CHART_PATH \
-                  -n prod \
-                  --create-namespace \
-                  --set image.tag=$DOCKER_TAG \
-                  --set nginx.nodePort=30083
-                '''
+
+                withKubeConfig([credentialsId: 'config']) {
+                    sh '''
+                    helm upgrade --install movie-app-prod $CHART_PATH \
+                      -n $NS_PROD \
+                      --create-namespace \
+                      --set image.tag=$DOCKER_TAG \
+                      --set ingress.enabled=true \
+                      --set ingress.host=$HOST_PROD
+                    '''
+                }
             }
         }
 
@@ -158,9 +160,12 @@ pipeline {
             }
             steps {
                 input message: 'Stop DEV environment?'
-                sh '''
-                helm uninstall movie-app-dev -n dev || true
-                '''
+
+                withKubeConfig([credentialsId: 'config']) {
+                    sh '''
+                    helm uninstall movie-app-dev -n $NS_DEV || true
+                    '''
+                }
             }
         }
 
@@ -170,9 +175,12 @@ pipeline {
             }
             steps {
                 input message: 'Stop QA environment?'
-                sh '''
-                helm uninstall movie-app-qa -n qa || true
-                '''
+
+                withKubeConfig([credentialsId: 'config']) {
+                    sh '''
+                    helm uninstall movie-app-qa -n $NS_QA || true
+                    '''
+                }
             }
         }
 
@@ -182,9 +190,12 @@ pipeline {
             }
             steps {
                 input message: 'Stop STAGING environment?'
-                sh '''
-                helm uninstall movie-app-staging -n staging || true
-                '''
+
+                withKubeConfig([credentialsId: 'config']) {
+                    sh '''
+                    helm uninstall movie-app-staging -n $NS_STAGING || true
+                    '''
+                }
             }
         }
 
@@ -194,32 +205,41 @@ pipeline {
             }
             steps {
                 input message: 'Stop PRODUCTION environment?'
-                sh '''
-                helm uninstall movie-app-prod -n prod || true
-                '''
+
+                withKubeConfig([credentialsId: 'config']) {
+                    sh '''
+                    helm uninstall movie-app-prod -n $NS_PROD || true
+                    '''
+                }
             }
         }
     }
 
     post {
         always {
-            sh '''
-            echo "===== DEV ====="
-            kubectl get pods -n dev || true
-            kubectl get svc -n dev || true
+            withKubeConfig([credentialsId: 'config']) {
+                sh '''
+                echo "===== JENKINS DEV ====="
+                kubectl get pods -n $NS_DEV || true
+                kubectl get svc -n $NS_DEV || true
+                kubectl get ingress -n $NS_DEV || true
 
-            echo "===== QA ====="
-            kubectl get pods -n qa || true
-            kubectl get svc -n qa || true
+                echo "===== JENKINS QA ====="
+                kubectl get pods -n $NS_QA || true
+                kubectl get svc -n $NS_QA || true
+                kubectl get ingress -n $NS_QA || true
 
-            echo "===== STAGING ====="
-            kubectl get pods -n staging || true
-            kubectl get svc -n staging || true
+                echo "===== JENKINS STAGING ====="
+                kubectl get pods -n $NS_STAGING || true
+                kubectl get svc -n $NS_STAGING || true
+                kubectl get ingress -n $NS_STAGING || true
 
-            echo "===== PROD ====="
-            kubectl get pods -n prod || true
-            kubectl get svc -n prod || true
-            '''
+                echo "===== JENKINS PROD ====="
+                kubectl get pods -n $NS_PROD || true
+                kubectl get svc -n $NS_PROD || true
+                kubectl get ingress -n $NS_PROD || true
+                '''
+            }
         }
     }
 }
