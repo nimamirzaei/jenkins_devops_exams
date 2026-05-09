@@ -145,20 +145,17 @@ pipeline {
 
         stage('Deploy Prod') {
             when {
-                allOf {
-                    expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'prod' || params.ENVIRONMENT == 'all') }
-                    branch 'master'
-                }
+                expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'prod' || params.ENVIRONMENT == 'all') }
             }
             steps {
                 input message: 'Deploy to production?'
-
+        
                 withCredentials([file(credentialsId: 'config', variable: 'KUBECONFIG_FILE')]) {
                     sh '''
                     mkdir -p ~/.kube
                     cp "$KUBECONFIG_FILE" ~/.kube/config
                     chmod 600 ~/.kube/config
-
+        
                     helm upgrade --install movie-app-prod $CHART_PATH \
                       -n $NS_PROD \
                       --create-namespace \
