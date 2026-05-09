@@ -3,7 +3,7 @@ pipeline {
 
     parameters {
         choice(name: 'ACTION', choices: ['Deploy', 'Stop'], description: 'Deploy or Stop environment')
-        choice(name: 'ENVIRONMENT', choices: ['dev', 'qa', 'staging', 'prod', 'all'], description: 'Target environment')
+        choice(name: 'ENVIRONMENT', choices: ['all', 'dev', 'qa', 'staging', 'prod'], description: 'Target environment')
     }
 
     environment {
@@ -145,8 +145,12 @@ pipeline {
 
         stage('Deploy Prod') {
             when {
-                expression { params.ACTION == 'Deploy' && (params.ENVIRONMENT == 'prod' || params.ENVIRONMENT == 'all') }
+                expression {
+                    params.ACTION == 'Deploy' &&
+                    (params.ENVIRONMENT == 'prod' || params.ENVIRONMENT == 'all')
+                }
             }
+        
             steps {
                 input message: 'Deploy to production?'
         
